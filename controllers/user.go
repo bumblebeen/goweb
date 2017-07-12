@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"io/ioutil"
+	"io"
 )
 
 type UserController struct {
@@ -22,13 +24,13 @@ func (uc UserController) GetUser (res http.ResponseWriter, req *http.Request, ps
 	id := ps.ByName("id")
 
 	if !bson.IsObjectIdHex(id) {
-		res.WriteHeader(404)
+		res.WriteHeader(http.StatusNotFound)
 		return
 	}
 	u:= models.User{};
 	oid := bson.ObjectIdHex(id)
 	if err := uc.session.DB("webapi").C("users").FindId(oid).One(&u); err != nil {
-		res.WriteHeader(404)
+		res.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -40,9 +42,16 @@ func (uc UserController) GetUser (res http.ResponseWriter, req *http.Request, ps
 }
 
 func (uc UserController) CreateUser (res http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	body, err := ioutil.ReadAll(io.LimitReader(req.Body, 1048576))
+	if err != nil {
+		panic(err)
+	}
 	u := models.User{}
+	if err := json.Unmarshal(body, &u); err != nil {
+		panic(err)
+	}
 
-	json.NewDecoder(req.Body).Decode(&u);
+	// json.NewDecoder(req.Body).Decode(&u);
 
 	u.Id = bson.NewObjectId()
 
@@ -51,7 +60,7 @@ func (uc UserController) CreateUser (res http.ResponseWriter, req *http.Request,
 	uj, _ := json.Marshal(u);
 
 	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(201)
+	res.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(res, "%s", uj)
 }
 
@@ -65,9 +74,9 @@ func (uc UserController) RemoveUser(res http.ResponseWriter, req *http.Request, 
 
 	oid := bson.ObjectIdHex(id)
 	if err := uc.session.DB("webapi").C("users").RemoveId(oid); err != nil {
-		res.WriteHeader(404)
+		res.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	res.WriteHeader(204);
+	res.WriteHeader(http.StatusNoContent);
 }
