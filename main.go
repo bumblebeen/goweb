@@ -6,9 +6,18 @@ import (
 	"os"
 	"github.com/julienschmidt/httprouter"
 	"github.com/bumblebeen/goweb/controllers"
+	"gopkg.in/mgo.v2"
 )
 
 var port = os.Getenv("PORT");
+
+func getSession() *mgo.Session{
+	session, err := mgo.Dial("mongodb://localhost");
+	if (err != nil) {
+		panic(err);
+	}
+	return session
+}
 
 func main() {
 	if (port == "") {
@@ -17,7 +26,7 @@ func main() {
 	fmt.Println("Starting server at port: ", port);
 
 	router := httprouter.New();
-	uc := controllers.NewUserController();
+	uc := controllers.NewUserController(getSession());
 	router.GET("/ping", func(res http.ResponseWriter, req * http.Request, p httprouter.Params){
 		fmt.Fprintf(res, "pong");
 	});

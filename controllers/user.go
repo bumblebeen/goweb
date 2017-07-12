@@ -6,20 +6,30 @@ import (
 	"github.com/bumblebeen/goweb/models"
 	"encoding/json"
 	"fmt"
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
-type UserController struct {}
+type UserController struct {
+	session *mgo.Session;
+}
 
-func NewUserController() *UserController {
-	return &UserController{}
+func NewUserController(session *mgo.Session) *UserController {
+	return &UserController{session}
 }
 
 func (uc UserController) GetUser (res http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	u:= models.User{
-		Name: "Marvin Arcilla",
-		Gender: "Male",
-		Age: 24,
-		Id: ps.ByName("id"),
+	id := ps.ByName("id")
+
+	if !bson.IsObjectIdHex(id) {
+		res.WriteHeader(404)
+		return
+	}
+	u:= models.User{};
+	oid := bson.ObjectIdHex(id)
+	if err := uc.session.DB("webapi").C("users").FindId(oid).One(&u); err != nil {
+		res.WriteHeader(404)
+		return
 	}
 
 	uj, _ := json.Marshal(u)
@@ -34,7 +44,9 @@ func (uc UserController) CreateUser (res http.ResponseWriter, req *http.Request,
 
 	json.NewDecoder(req.Body).Decode(&u);
 
-	u.Id = "foo"
+	u.Id = bson.NewObjectId()
+
+	uc.session.DB("webapi").C("users").Insert(u);
 
 	uj, _ := json.Marshal(u);
 
@@ -43,7 +55,19 @@ func (uc UserController) CreateUser (res http.ResponseWriter, req *http.Request,
 	fmt.Fprintf(res, "%s", uj)
 }
 
-func (uc UserController) RemoveUser(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	// TODO: only write status for now
-	w.WriteHeader(200)
+func (uc UserController) RemoveUser(res http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	id := ps.ByName("id")
+
+	if !bson.IsObjectIdHex(id) {
+		res.WriteHeader(404)
+		return
+	}
+
+	oid := bson.ObjectIdHex(id)
+	if err := uc.session.DB("webapi").C("users").RemoveId(oid); err != nil {
+		res.WriteHeader(404)
+		return
+	}
+
+	res.WriteHeader(204);
 }
