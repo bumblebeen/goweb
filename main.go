@@ -31,6 +31,8 @@ func main() {
 		fmt.Fprintf(res, "pong");
 	});
 	router.GET("/user/:id", uc.GetUser);
+	router.GET("/token", uc.GetTokenHandler);
+	router.GET("/token/validate/:token", uc.DecodeToken);
 	router.POST("/user", uc.CreateUser);
 	router.POST("/user/login", uc.AuthenticateUser);
 	router.DELETE("/user/:id", uc.RemoveUser);

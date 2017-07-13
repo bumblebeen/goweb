@@ -12,6 +12,8 @@ import (
 	"io/ioutil"
 	"io"
 	"log"
+	"time"
+	"github.com/dgrijalva/jwt-go"
 )
 
 type UserController struct {
@@ -116,4 +118,53 @@ func (uc UserController) RemoveUser(res http.ResponseWriter, req *http.Request, 
 	}
 
 	res.WriteHeader(http.StatusNoContent);
+}
+
+func (uc UserController) GetTokenHandler (res http.ResponseWriter, r *http.Request, ps httprouter.Params){
+	var mySigningKey = []byte("secret")
+	/* Create the token */
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"foo": "bar",
+		"nbf": time.Date(2015, 10, 10, 12, 0, 0, 0, time.UTC).Unix(),
+		"exp": time.Now().Add(time.Hour * 24).Unix(),
+	})
+
+	fmt.Println(token)
+	// Sign and get the complete encoded token as a string using the secret
+	tokenString, err := token.SignedString(mySigningKey)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(tokenString)
+	/* Finally, write the token to the browser window */
+	res.Write([]byte(tokenString))
+}
+
+func (uc UserController) DecodeToken (res http.ResponseWriter, r *http.Request, ps httprouter.Params){
+	var mySigningKey = []byte("secret")
+	/* Create the token */
+	tokenString := ps.ByName("token")
+
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Don't forget to validate the alg is what you expect:
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+
+		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
+		return mySigningKey, nil
+	})
+	if (err != nil) {
+		res.WriteHeader(http.StatusUnauthorized);
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		fmt.Printf("Type is %T\n", claims)
+		fmt.Println(claims["foo"], claims["nbf"])
+		res.WriteHeader(http.StatusOK);
+	} else {
+		res.WriteHeader(http.StatusUnauthorized);
+	}
 }
