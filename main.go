@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"github.com/julienschmidt/httprouter"
+	"github.com/gorilla/mux"
 	"github.com/bumblebeen/goweb/controllers"
 	"gopkg.in/mgo.v2"
 )
@@ -25,17 +25,17 @@ func main() {
 	}
 	fmt.Println("Starting server at port: ", port);
 
-	router := httprouter.New();
+	router := mux.NewRouter();
 	uc := controllers.NewUserController(getSession());
-	router.GET("/ping", func(res http.ResponseWriter, req * http.Request, p httprouter.Params){
+	router.HandleFunc("/ping", func(res http.ResponseWriter, req * http.Request){
 		fmt.Fprintf(res, "pong");
 	});
-	router.GET("/user/:id", uc.GetUser);
-	router.GET("/token", uc.GetTokenHandler);
-	router.GET("/token/validate/:token", uc.DecodeToken);
-	router.POST("/user", uc.CreateUser);
-	router.POST("/user/login", uc.AuthenticateUser);
-	router.DELETE("/user/:id", uc.RemoveUser);
+	router.HandleFunc("/user/{id}", uc.GetUser).Methods("GET");
+	router.HandleFunc("/token", uc.GetTokenHandler).Methods("GET");
+	router.HandleFunc("/token/validate/{token}", uc.DecodeToken).Methods("GET");
+	router.HandleFunc("/user", uc.CreateUser).Methods("POST");
+	router.HandleFunc("/user/login", uc.AuthenticateUser).Methods("POST");
+	router.HandleFunc("/user/{id}", uc.RemoveUser).Methods("DELETE");
 
 	http.ListenAndServe(port, router);
 }

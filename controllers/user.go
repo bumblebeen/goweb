@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"net/http"
-	"github.com/julienschmidt/httprouter"
 	"github.com/bumblebeen/goweb/models"
 	"encoding/json"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"log"
 	"time"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/mux"
 )
 
 type UserController struct {
@@ -24,8 +24,9 @@ func NewUserController(session *mgo.Session) *UserController {
 	return &UserController{session}
 }
 
-func (uc UserController) GetUser (res http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	id := ps.ByName("id")
+func (uc UserController) GetUser (res http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req);
+	id := vars["id"];
 
 	if !bson.IsObjectIdHex(id) {
 		res.WriteHeader(http.StatusNotFound)
@@ -45,7 +46,7 @@ func (uc UserController) GetUser (res http.ResponseWriter, req *http.Request, ps
 	fmt.Fprintf(res, "%s", uj)
 }
 
-func (uc UserController) AuthenticateUser (res http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func (uc UserController) AuthenticateUser (res http.ResponseWriter, req *http.Request) {
 	err := req.ParseForm()
 	if err != nil {
 		log.Fatalln(err)
@@ -78,7 +79,7 @@ func (uc UserController) AuthenticateUser (res http.ResponseWriter, req *http.Re
 	fmt.Fprintf(res, "%s", uj)
 }
 
-func (uc UserController) CreateUser (res http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func (uc UserController) CreateUser (res http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(io.LimitReader(req.Body, 1048576))
 	if err != nil {
 		panic(err)
@@ -103,8 +104,9 @@ func (uc UserController) CreateUser (res http.ResponseWriter, req *http.Request,
 	fmt.Fprintf(res, "%s", uj)
 }
 
-func (uc UserController) RemoveUser(res http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	id := ps.ByName("id")
+func (uc UserController) RemoveUser(res http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req);
+	id := vars["id"];
 
 	if !bson.IsObjectIdHex(id) {
 		res.WriteHeader(404)
@@ -120,7 +122,7 @@ func (uc UserController) RemoveUser(res http.ResponseWriter, req *http.Request, 
 	res.WriteHeader(http.StatusNoContent);
 }
 
-func (uc UserController) GetTokenHandler (res http.ResponseWriter, r *http.Request, ps httprouter.Params){
+func (uc UserController) GetTokenHandler (res http.ResponseWriter, r *http.Request){
 	var mySigningKey = []byte("secret")
 	/* Create the token */
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -141,10 +143,11 @@ func (uc UserController) GetTokenHandler (res http.ResponseWriter, r *http.Reque
 	res.Write([]byte(tokenString))
 }
 
-func (uc UserController) DecodeToken (res http.ResponseWriter, r *http.Request, ps httprouter.Params){
+func (uc UserController) DecodeToken (res http.ResponseWriter, req *http.Request){
 	var mySigningKey = []byte("secret")
 	/* Create the token */
-	tokenString := ps.ByName("token")
+	vars := mux.Vars(req);
+	tokenString := vars["token"];
 
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
