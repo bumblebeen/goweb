@@ -41,7 +41,7 @@ func (uc UserController) GetUser (res http.ResponseWriter, req *http.Request) {
 
 	uj, _ := json.Marshal(u)
 
-	res.Header().Set("Content-Type", "application/json");
+	//res.Header().Set("Content-Type", "application/json");
 	res.WriteHeader(200);
 	fmt.Fprintf(res, "%s", uj)
 }
