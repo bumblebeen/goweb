@@ -32,6 +32,7 @@ func main() {
 	});
 	router.GET("/user/:id", uc.GetUser);
 	router.POST("/user", uc.CreateUser);
+	router.POST("/user/login", uc.AuthenticateUser);
 	router.DELETE("/user/:id", uc.RemoveUser);
 
 	http.ListenAndServe(port, router);

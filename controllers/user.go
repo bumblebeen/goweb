@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"golang.org/x/crypto/bcrypt"
 	"io/ioutil"
 	"io"
+	"log"
 )
 
 type UserController struct {
@@ -41,6 +43,39 @@ func (uc UserController) GetUser (res http.ResponseWriter, req *http.Request, ps
 	fmt.Fprintf(res, "%s", uj)
 }
 
+func (uc UserController) AuthenticateUser (res http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	err := req.ParseForm()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	u:= models.User{};
+	un := req.PostFormValue("Name")
+	p := req.PostFormValue("Password")
+
+	if un == "" {
+		res.WriteHeader(http.StatusBadRequest);
+		fmt.Fprintf(res, "Bad Request")
+		return
+	}
+
+	if err := uc.session.DB("webapi").C("users").Find(bson.M{"name": un}).One(&u); err != nil {
+		res.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(p))
+	if err != nil {
+		log.Println("Passwords do not match:", err)
+		res.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	uj, _ := json.Marshal(u)
+
+	res.Header().Set("Content-Type", "application/json");
+	res.WriteHeader(200);
+	fmt.Fprintf(res, "%s", uj)
+}
+
 func (uc UserController) CreateUser (res http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	body, err := ioutil.ReadAll(io.LimitReader(req.Body, 1048576))
 	if err != nil {
@@ -51,6 +86,8 @@ func (uc UserController) CreateUser (res http.ResponseWriter, req *http.Request,
 		panic(err)
 	}
 
+	bs, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.MinCost)
+	u.Password = string(bs)
 	// json.NewDecoder(req.Body).Decode(&u);
 
 	u.Id = bson.NewObjectId()
