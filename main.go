@@ -11,6 +11,8 @@ import (
 	"github.com/bumblebeen/goweb/tools/middleware"
 	"github.com/urfave/negroni"
 	"time"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/auth0/go-jwt-middleware"
 )
 
 var port = os.Getenv("PORT");
@@ -64,6 +66,15 @@ func MyMiddleware3(rw http.ResponseWriter, r *http.Request, next http.HandlerFun
 	next(rw, r)
 	fmt.Println("-----------: after")
 }
+
+var myHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value("user")
+	fmt.Fprintf(w, "This is an authenticated request")
+	fmt.Fprintf(w, "Claim content:\n")
+	for k, v := range user.(*jwt.Token).Claims.(jwt.MapClaims) {
+		fmt.Fprintf(w, "%s :\t%#v\n", k, v)
+	}
+})
 
 func main() {
 	if (port == "") {
@@ -131,6 +142,22 @@ func main() {
 	router.HandleFunc("/panic", func(res http.ResponseWriter, req *http.Request) {
 		panic("PANIC!!!")
 	});
+
+
+	jwtMiddleware := jwtmiddleware.New(jwtmiddleware.Options{
+		ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
+			return []byte("secret"), nil
+		},
+		// When set, the middleware verifies that tokens are signed with the specific signing algorithm
+		// If the signing method is not constant the ValidationKeyGetter callback can be used to implement additional checks
+		// Important to avoid security issues described here: https://auth0.com/blog/2015/03/31/critical-vulnerabilities-in-json-web-token-libraries/
+		SigningMethod: jwt.SigningMethodHS256,
+	})
+
+	router.Handle("/patingin", negroni.New(
+		negroni.HandlerFunc(jwtMiddleware.HandlerWithNext),
+		negroni.Wrap(myHandler),
+	))
 
 	s := &http.Server{
 		Addr:           port,
